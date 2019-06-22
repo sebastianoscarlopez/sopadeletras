@@ -12,6 +12,15 @@ JMP INICIO_JUEGO
 
 
 ;Definicion de bytes y palabras
+    ;Limite de pantalla
+    
+    ;OK EMU8086
+        ;Limites en X
+    limMin_X    EQU  1         ;pos 0 de matriz mas uno de pared
+    limMax_X    EQU  20        ;pos 1 pared y pos 21 de pared. limMin_X + 19
+        ;Limites en Y
+    limMin_Y    EQU  4         ;pos 4 de menu mas 0 de comienzo de matriz
+    limMax_Y    EQU  18        ;pos 4 de menu mas 14 del alto de la matriz. limMin_Y + 14
 
 
     menu		DB "           ######   #######  ########     ###            " ,10,13
@@ -43,7 +52,8 @@ JMP INICIO_JUEGO
 				
 
      info        DB  "ACA VA LA INFO",'$'
-
+    
+    final_texto DB "RESPUESTAS CORRECTAS ",'$'
 
     pantalla   	DB  201,20 dup(205),203,52 dup(205),                                                             187,10, 13
                 DB  186,02 dup(032),'SOPA  DE  LETRAS',2 dup(32),186,21 dup(32),"PREGUNTAS!",21 dup(32),         186,10, 13
@@ -69,7 +79,20 @@ JMP INICIO_JUEGO
                 ;Para el posicionamiento de las respuestas comparo con signo &, en documento despues del $
                 ;Para el posicionamiento de las preguntas comparo con signo %,  en documento antes del $
                 ;Para el posicionamiento de las aleatorias comparo con r.
-   
+    
+
+    ; Las posiciones de las soluciones tomando como base limM??_?
+    ; Entonces primera posicion comienza en 0, porque DL (4) - limMin_X(4) = 0
+    solucionesX  DB 11 + limMin_X, 01 + limMin_X, 05 + limMin_X, 00 + limMin_X, 09 + limMin_X, 01 + limMin_X, 10 + limMin_X, 02 + limMin_X, 00 + limMin_X, 12 + limMin_X
+    solucionesY  DB 00 + limMin_Y, 01 + limMin_Y, 03 + limMin_Y, 05 + limMin_Y, 06 + limMin_Y, 08 + limMin_Y, 09 + limMin_Y, 11 + limMin_Y, 13 + limMin_Y, 14 + limMin_Y
+    solucionesFinX  DB 11 + 8 + limMin_X, 01 + 6 + limMin_X, 05 + 10 + limMin_X, 00 + 3 + limMin_X, 09 + 6 + limMin_X, 01 + 6 + limMin_X, 10 + 7 + limMin_X, 02 + 11 + limMin_X, 00 + 5 + limMin_X, 12 + 4 + limMin_X
+    solucionesFinY  DB 00 + limMin_Y, 01 + limMin_Y, 03 + limMin_Y, 05 + limMin_Y, 06 + limMin_Y, 08 + limMin_Y, 09 + limMin_Y, 11 + limMin_Y, 13 + limMin_Y, 14 + limMin_Y
+
+    ; Posicion inicial de las preguntas
+    posPreguntasX DB limMax_X + 2    ; Son dos por la pared
+    posPreguntasY DB limMin_Y + 2    ; Son dos por los renglones en blanco
+    
+    
 	;Seccion manejo de archivos
 	
 	archivo     DB "c:\tp\preguntasOK.txt" , 0   ;Ubicacion del archivo a utilizar
@@ -87,17 +110,7 @@ JMP INICIO_JUEGO
     
     ;Fin errores
     ;Fin Seccion manejo de archivos
-    
-    ;Limite de pantalla
-    
-    ;OK EMU8086
-        ;Limites en X
-    limMin_X    DB  0   + 1       ;pos 0 de matriz mas uno de pared
-    limMax_X    DB  21  - 1       ;pos 21 de pared menos uno fin de matriz
-        ;Limites en Y
-    limMin_Y    DB  4 + 0       ;pos 4 de menu mas 0 de comienzo de matriz
-    limMax_Y    DB  4 + 14      ;pos 4 de menu mas 14 del alto de la matriz (por alguna razon empieza en uno y no pongo el 15)
-    
+          
 ;    ;   OK EN DOSBOX .COM 
 ;    ;Limites en X
 ;    limMin_X    DB  0   + 1       ;pos 0 de matriz mas uno de pared
@@ -118,10 +131,10 @@ JMP INICIO_JUEGO
 	letra DB ?
 	copia DB ?       
 	estadoDelJuego DB 0 ; estado 0 es juego no inicio, estado 1 es juegoIniciado Sin letra seleccionada, estado 2 es juegoIniciado con palabra Seleccionada.
-    cordenadaRespF DB 14 dup(0)  ;Van a ser las cordenadas del Fin de las respuesta. 
-    cordenadaRespI DB 14 dup(0)  ;Van a ser las cordenadas de Pantalla de Inicio de las respuesta.
-    idxPregunta DW 0 ; Empieza en la pregunta 1, indice 0 (obvio)
-    respuestasOk DW 0  ; Respuestas que contesta correctamente
+    inicioX DB 0    ; Posicion X inicio de palabra
+    inicioY DB 0    ; Posicion Y inicio de palabra
+    idxPregunta DB 0 ; Empieza en la pregunta 1, indice 0 (obvio)
+    respuestasOk DB 0  ; Respuestas que contesta correctamente
 	  
 ;Fin de definicion de bytes y palabras
 
@@ -171,8 +184,6 @@ ENDM
 
 ;Posiciona el cursor en un lugar determinado por (X,Y)
 setCursor MACRO pos_X,pos_Y
-
-    
     MOV DH,pos_Y        ;Fila       # X
     MOV DL,pos_X        ;Columna    # Y
     MOV BH,0            ;Pagina     # 0 o principal
@@ -181,18 +192,36 @@ setCursor MACRO pos_X,pos_Y
     MOV AH,2
 	INT 10h
 ENDM
+                    
+; Guarda en AH la posicion Y
+getPosicionPreguntaY MACRO
+    MOV AH, posPreguntasY  ; Poscion Y pregunta actual
+    ADD AH, idxPregunta
+ENDM
 
 
 ;Escribe letra en color
-putLetra MACRO colorH, colorL
+putLetra MACRO color
     MOV AH,09H
     MOV AL,letra     ;AL misma letra. Tal vez se pueda omitir esta instruccion
-    MOV BH,colorH          ;Color BIOS BH y BL
-    MOV BL,colorL          ;Rojo 0100, Verde 0010, amarillo 1110
+    MOV BH,0
+    MOV BL, color          ;Color BIOS BH y BL. Rojo 0100, Verde 0010, amarillo 1110
     MOV CX,01H          ;Un solo caracter repetido
     INT 10H    
 ENDM
 
+colorPregunta MACRO color
+    getPosicionPreguntaY    ; En AH la posicion Y
+    setCursor posPreguntasX, AH
+    CALL setLetraDelCursor   ;Guarda en letra el caracter
+    putLetra color
+ENDM
+
+pintarPalabra MACRO color
+    setCursor inicioX, inicioY
+    CALL setLetraDelCursor   ;Guarda en letra el caracter
+    putLetra color
+ENDM
 
 ;Fin de macros
 ;¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -227,15 +256,7 @@ iniciarCursor PROC
     INT 16h
 	RET
 ENDP   
-       
-       
-resetCursor PROC
-    setCursor 0,0
-    MOV AH,0  
-    INT 16h
-	RET
-ENDP       
-                      
+
 ; Posicion del cursor se guardan en DL(x), DH(y)
 getCursorPosition PROC
     MOV AH, 3
@@ -287,9 +308,6 @@ GENERAR_LETRA:
 	    JMP bucle           
 
 incPosBp:
-
-    ;MOV cordenadaRespF[numDeResp],SI ; Cordenadas FINAL de respuesta
-    ;INC numDeResp
     INC BP
     
     JMP VERIFICAR
@@ -338,11 +356,13 @@ INICIO_JUEGO:
         cerrarArchivo ID_Archivo                ;cerrarArchivos recibe el id del archivo y lo cierra
 
         CALL limpiarRegistros                   ;
+        
         CALL cargarPantalla  
 		print menu               
 		
 		MOV BH,0
 		MOV estadoDelJuego,BH   
+        CALL iniciarCursor 
 		JMP DETECTAR_TECLA
 		 
 		 
@@ -351,7 +371,7 @@ INICIO_JUEGO:
 INICIO_SOPA:
 
         
-        CALL resetCursor                    ;      		
+        setCursor 0, 0
         print pantalla 
         
         MOV BH,1
@@ -362,9 +382,12 @@ INICIO_SOPA:
 		
 
 INICIALIZAR_CURSOR:        
-        ;inicializo el cursor para que quede en espera de una tecla.
-        CALL iniciarCursor 
-        JMP DETECTAR_TECLA
+    setCursor posPreguntasX, posPreguntasY  ; Color amarillo pregunta actual
+    CALL setLetraDelCursor   ;Guarda en letra el caracter
+    putLetra 11100000b ;Sobrescribe el caracter con el anterior pero con color amarillo
+    ;inicializo el cursor para que quede en espera de una tecla.
+    CALL iniciarCursor 
+    JMP DETECTAR_TECLA
 
 
     
@@ -508,74 +531,83 @@ primeraColumna:  ;cuando este en la columna 30 y se vaya hacia la derecha,
 
 
 RESPUESTA_INICIO:
-            ; use this code for compatibility with dos/cmd prompt full screen mode: 
-        MOV AX, 1003h
-        MOV BX, 0   ; disable blinking. 
-        INT 10h
-        
-        
-        ;leo caracter de la pagina 0
-        MOV AH,08h
-        MOV BH,00h         
-        INT 10h
-        MOV letra, AL  ;Leo el caracter y lo guardo en letra
-        
-        ;Sobre-escribo el caracter con el anterior pero con color
-        MOV AH,09H
-        MOV AL,letra        ;Al presionar enter, cargo en esa
-        MOV BH,10H          ;posicion el caracter
-        MOV BL,00H    ;guardado en LETRa
-        MOV CX,01H          ;con un fondo rojo
-        INT 10H    
-        
-        
-        MOV BH,2                      
-        MOV estadoDelJuego,BH    
-        
-        
-        JMP DETECTAR_TECLA    
+    CALL setLetraDelCursor ;Guarda en letra el caracter
+    CALL getCursorPosition
+    MOV inicioX, DL     ; Guarda posicion X de inicio de palabra
+    MOV inicioY, DH     ; Guarda posicion Y de inicio de palabra
+    putLetra 10010000b ;Sobrescribe el caracter con el anterior pero con color       
+    MOV BH,2                      
+    MOV estadoDelJuego,BH
+    JMP DETECTAR_TECLA    
         
         
 RESPUESTA_FIN:
-        CALL setLetraDelCursor ;Guarda en letra el caracter        
-        putLetra 10H, 11H ;Sobrescribe el caracter con el anterior pero con color
-        INT 10H    
-        
-        
-        MOV BH,1                     
-        MOV estadoDelJuego,BH    
-        
-        
-        JMP DETECTAR_RESPUESTA ; Solo se detecta al seleccionar el final de la palabra
+    CALL setLetraDelCursor ;Guarda en letra el caracter        
+    putLetra 10110000b ;Sobrescribe el caracter con el anterior pero con color        
+    MOV BH,1                     
+    MOV estadoDelJuego,BH
+    JMP DETECTAR_RESPUESTA ; Solo se detecta al seleccionar el final de la palabra
         
 ; Compara las posiciones del cursor en los enter con los valores en Soluciones
 DETECTAR_RESPUESTA:
-    CALL getCursorPosition
-    MOV SI, idxPregunta    ; Puntero a indice de pregunta
-    CMP DL, 0BH            ; TODO: Compara pos X con SolucionesX[idxPregunta]
-    JE  RESPUESTA_CORRECTA
-    JMP RESPUESTA_INCORRECTA
-
-; Pasa a la siguiente pregunta. Sino hay mas preguntas salta a mostrar el resultado
-SIGUIENTE_PREGUNTA:
-    MOV AX,idxPregunta     ; Pasa a la siguiente pregunta
-    INC AX
-    MOV idxPregunta, AX
-    ; TODO: Falta saltar a mostrar resultado cuando no hay mas preguntas
-    JMP DETECTAR_TECLA
+    MOV AL, idxPregunta     ; Puntero a indice de pregunta
+    XOR AH, AH
+    MOV SI, AX
+    MOV AL, inicioX
+    CMP AL, solucionesX[SI] ; Compara inicioX con SolucionesX[idxPregunta]
+    JNE RESPUESTA_INCORRECTA
+    MOV AL, inicioY
+    CMP AL, solucionesY[SI] ; Compara inicioY con SolucionesY[idxPregunta]
+    JNE RESPUESTA_INCORRECTA
+    CALL getCursorPosition  ; Guarda en DL y DH la posicion del cursor
+    CMP DL, solucionesFinX[SI] ; Compara pos X con SolucionesFinX[idxPregunta]
+    JNE RESPUESTA_INCORRECTA
+    CMP DH, solucionesFinY[SI] ; Compara pos Y con SolucionesFinY[idxPregunta]
+    JNE RESPUESTA_INCORRECTA
+    JMP RESPUESTA_CORRECTA      ; Solo llega a la respuesta correcta si paso todas las validaciones
 
 ; Pinta de verde la respuesta correcta
 RESPUESTA_CORRECTA:
+    pintarPalabra 10100000b ; Pinta la palabra de Verde
+    MOV AL,respuestasOk      ; Incrementa las respuestas correctas   
+    INC AL
+    MOV respuestasOk, AL
+    colorPregunta 10100000b ; Sobrescribe el caracter con el anterior pero con color verde
     JMP SIGUIENTE_PREGUNTA
                                                 
 ; Pinta de rojo la respuesta incorrecta
 RESPUESTA_INCORRECTA:
+    pintarPalabra 01000000b ; Pinta la palabra de rojo
+    colorPregunta 01000000b ; Sobrescribe el caracter con el anterior pero con color rojo
     JMP SIGUIENTE_PREGUNTA
-
+               
+; Pasa a la siguiente pregunta. Sino hay mas preguntas salta a mostrar el resultado
+SIGUIENTE_PREGUNTA:
+    MOV AH,idxPregunta     ; Pasa a la siguiente pregunta
+    INC AH
+    CMP AH, 2              ; Se acabaron las preguntas
+    JE  FIN_SOPA
+    MOV idxPregunta, AH
+    getPosicionPreguntaY    ; En AH la posicion Y
+    setCursor posPreguntasX, AH
+    CALL setLetraDelCursor   ;Guarda en letra el caracter
+    putLetra 11100000b ;Sobrescribe el caracter con el anterior pero con color amarillo
+    setCursor limMin_X, limMin_Y
+    JMP DETECTAR_TECLA
 
 error:
     JMP fin    
+
+FIN_SOPA:
+    setCursor 2, 20
+    print final_texto
+    MOV AH, respuestasOk
+    ADD AH, 48
+    INT 21h
+    CALL iniciarCursor
+    JMP fin
     
+
 ;Final de 
 fin:
 
