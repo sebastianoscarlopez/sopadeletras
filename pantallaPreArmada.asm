@@ -21,7 +21,8 @@ JMP INICIO_JUEGO
         ;Limites en Y
     limMin_Y    EQU  4         ;pos 4 de menu mas 0 de comienzo de matriz
     limMax_Y    EQU  18        ;pos 4 de menu mas 14 del alto de la matriz. limMin_Y + 14
-
+    
+    txtPedirNombre DB "Nombre: ", '$'
 
     menu		DB "           ######   #######  ########     ###            " ,10,13
                 DB "          ##    ## ##     ## ##     ##   ## ##           " ,10,13
@@ -30,7 +31,7 @@ JMP INICIO_JUEGO
                 DB "                ## ##     ## ##        #########         " ,10,13
                 DB "          ##    ## ##     ## ##        ##     ##         " ,10,13
                 DB "           ######   #######  ##        ##     ##         " ,10,13
-                DB "                                                         " ,10,13
+ ;               DB "                                                         " ,10,13
                 DB "                   ########  ########                    " ,10,13
                 DB "                   ##     ## ##                          " ,10,13
                 DB "                   ##     ## ##                          " ,10,13
@@ -38,7 +39,7 @@ JMP INICIO_JUEGO
                 DB "                   ##     ## ##                          " ,10,13
                 DB "                   ##     ## ##                          " ,10,13
                 DB "                   ########  ########                    " ,10,13
-                DB "                                                         " ,10,13
+;                DB "                                                         " ,10,13
                 DB " ##       ######## ######## ########     ###     ######  " ,10,13
                 DB " ##       ##          ##    ##     ##   ## ##   ##    ## " ,10,13
                 DB " ##       ##          ##    ##     ##  ##   ##  ##       " ,10,13
@@ -47,13 +48,13 @@ JMP INICIO_JUEGO
                 DB " ##       ##          ##    ##    ##  ##     ## ##    ## " ,10,13
                 DB " ######## ########    ##    ##     ## ##     ##  ######  " ,10,13
 				DB "---------------------------------------------------------" ,10,13
-				DB "  Presione Enter para continuar o I para informacion...  " ,10,13,'$'
+				DB "  Presione Enter para continuar o I para informacion...  " ,'$'
 				
 				
 
      info        DB  "ACA VA LA INFO",'$'
     
-    final_texto DB "RESPUESTAS CORRECTAS ",'$'
+    final_texto DB "RESPUESTAS CORRECTAS         ",'$'
 
     pantalla   	DB  201,20 dup(205),203,52 dup(205),                                                             187,10, 13
                 DB  186,02 dup(032),'SOPA  DE  LETRAS',2 dup(32),186,21 dup(32),"PREGUNTAS!",21 dup(32),         186,10, 13
@@ -79,13 +80,13 @@ JMP INICIO_JUEGO
                 ;Para el posicionamiento de las respuestas comparo con signo &, en documento despues del $
                 ;Para el posicionamiento de las preguntas comparo con signo %,  en documento antes del $
                 ;Para el posicionamiento de las aleatorias comparo con r.
-    
+    referencias DB    " :Correcto;  :Incorrecta;  :Pregunta actual",'$' 
 
     ; Las posiciones de las soluciones tomando como base limM??_?
     ; Entonces primera posicion comienza en 0, porque DL (4) - limMin_X(4) = 0
     solucionesX  DB 11 + limMin_X, 01 + limMin_X, 05 + limMin_X, 00 + limMin_X, 09 + limMin_X, 01 + limMin_X, 10 + limMin_X, 02 + limMin_X, 00 + limMin_X, 12 + limMin_X
     solucionesY  DB 00 + limMin_Y, 01 + limMin_Y, 03 + limMin_Y, 05 + limMin_Y, 06 + limMin_Y, 08 + limMin_Y, 09 + limMin_Y, 11 + limMin_Y, 13 + limMin_Y, 14 + limMin_Y
-    solucionesFinX  DB 11 + 8 + limMin_X, 01 + 6 + limMin_X, 05 + 10 + limMin_X, 00 + 3 + limMin_X, 09 + 6 + limMin_X, 01 + 6 + limMin_X, 10 + 7 + limMin_X, 02 + 11 + limMin_X, 00 + 5 + limMin_X, 12 + 4 + limMin_X
+    solucionesFinX  DB 11 + 8 + limMin_X, 01 + 6 + limMin_X, 05 + 10 + limMin_X, 00 + 3 + limMin_X, 09 + 6 + limMin_X, 01 + 6 + limMin_X, 10 + 7 + limMin_X, 02 + 11 + limMin_X, 00 + 4 + limMin_X, 12 + 3 + limMin_X
     solucionesFinY  DB 00 + limMin_Y, 01 + limMin_Y, 03 + limMin_Y, 05 + limMin_Y, 06 + limMin_Y, 08 + limMin_Y, 09 + limMin_Y, 11 + limMin_Y, 13 + limMin_Y, 14 + limMin_Y
 
     ; Posicion inicial de las preguntas
@@ -95,7 +96,7 @@ JMP INICIO_JUEGO
     
 	;Seccion manejo de archivos
 	
-	archivo     DB "c:\tp\preguntasOK.txt" , 0   ;Ubicacion del archivo a utilizar
+	archivo     DB "sopa.txt" , 0   ;Ubicacion del archivo a utilizar
     ;archivo2    DB "c:\tp\preguntas2.txt" , 0  ;Ubicacion del archivo a utilizar
     ID_Archivo  DW  ? ;HANDLE de archivo
     
@@ -126,16 +127,18 @@ JMP INICIO_JUEGO
     posInicialCursor_X  DB  10 + 1 ;le sumo 1 por el recuadro
     posInicialCursor_Y  DB  7 + 3  ;
     
-    
+    time  DB ?
     resto DB 26
 	letra DB ?
-	copia DB ?       
+	copia DB ?
+	colorFondo DB 0 ; Color para pintar letras       
 	estadoDelJuego DB 0 ; estado 0 es juego no inicio, estado 1 es juegoIniciado Sin letra seleccionada, estado 2 es juegoIniciado con palabra Seleccionada.
     inicioX DB 0    ; Posicion X inicio de palabra
     inicioY DB 0    ; Posicion Y inicio de palabra
+    finX    DB 0    ; Posicion X final de palabra
     idxPregunta DB 0 ; Empieza en la pregunta 1, indice 0 (obvio)
     respuestasOk DB 0  ; Respuestas que contesta correctamente
-	  
+	cantidadDePreguntas DB 10
 ;Fin de definicion de bytes y palabras
 
 ;¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
@@ -177,7 +180,7 @@ ENDM
 
 
 cerrarArchivo MACRO nombre  ;al llamar al macro pido el id del archivo
-    MOV AH, 3Eh
+    MOV AH, 3Dh
     MOV BX, nombre  ;Le paso el id del archivo a cerrar 
     INT 21h
 ENDM
@@ -217,17 +220,50 @@ colorPregunta MACRO color
     putLetra color
 ENDM
 
-pintarPalabra MACRO color
-    setCursor inicioX, inicioY
-    CALL setLetraDelCursor   ;Guarda en letra el caracter
-    putLetra color
-ENDM
 
 ;Fin de macros
 ;¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ;-------------------------Definicion de procedimientos----------------------
-;___________________________________________________________________________
- 
+;___________________________________________________________________________  
+; Solicita el nombre hasta precionar enter
+leerNombre PROC
+    print txtPedirNombre
+   ; MOV 
+    MOV AH,0  
+    INT 16h
+
+        
+ENDP
+
+clearScreen PROC 
+        mov AH, 6H 
+        mov AL, 0    
+        mov BH, 7         ;clear screen 
+        mov CX, 0
+        mov DL, 79
+        mov DH, 24
+        int 10H   
+        RET
+ENDP
+    
+pintarPalabra PROC
+    MOV CL, idxPregunta
+    MOV CH, 0
+    MOV SI, CX
+    MOV CL, solucionesFinX[SI]
+    MOV finX, CL
+    setCursor solucionesX[SI], solucionesY[SI]
+    pintarLetraPalabra:    
+        CALL setLetraDelCursor   ;Guarda en letra el caracter
+        putLetra colorFondo
+        CALL getCursorPosition  ; DL es posicion X
+        INC DL
+        setCursor DL, DH
+        CMP DL, finX
+        JNA pintarLetraPalabra
+    RET
+ENDP
+
 ; Guarda en letra el caracter donde esta el cursor
 setLetraDelCursor PROC
     ;leo caracter de la pagina 0
@@ -252,10 +288,10 @@ ENDP
 ;Inicializo y muestro el cursor
 iniciarCursor PROC
     setCursor posInicialCursor_X,posInicialCursor_Y
-    MOV AH,0  
-    INT 16h
+    ;MOV AH,0  
+    ;INT 16h
 	RET
-ENDP   
+ENDP                 
 
 ; Posicion del cursor se guardan en DL(x), DH(y)
 getCursorPosition PROC
@@ -271,17 +307,18 @@ cargarPantalla PROC
     MOV BX, 0        ; disable blinking. 
     INT 10h
     bucle:
-        INC SI                                  ;
-        CMP pantalla[SI],'&'                    ;
+        INC SI
+        MOV CH, pantalla[SI]                                  ;
+        CMP CH,'&'                    ;
         JE  VERIFICAR                           ;
         
-        CMP pantalla[SI],'r'                    ;
+        CMP CH,'r'                    ;
         JE GENERAR_LETRA                        ;
         
-        CMP pantalla[SI],'p'
+        CMP CH,'p'
         JE VERIFICAR
                 
-        CMP pantalla[SI],'$'                    ;
+        CMP CH,'$'                    ;
         JNE bucle                               ;
     RET
 ENDP
@@ -293,14 +330,18 @@ ENDP
 GENERAR_LETRA:
 ;genera las letras que van en la matriz haciendo un calculo
 	    ;XOR AX,AX
-	    MOV copia, CL                  	 
+	    ;ADD CL, copia
+	    ;MOV copia, CL
 	    MOV AH,2ch                   	 
 	    INT 21h                 	;inicializa el reloj
-	    ADD DL,26               	;
-	    MOV AL,DL               	;guarda las centesimas del reloj
-	    MOV CL, copia           	;
+	    ;ADD DL,26               	;
+	    ;MOV time, DL               	;guarda las centesimas del reloj  
+	    MOV AL, DL
+	    ADD AL, copia
+	    MOV copia, AL
 	    XOR AH,AH               	;reiniciamos ah
-	    DIV resto               	;dividimos el nro de la centesimax2                     	 
+	    DIV resto               	;dividimos el nro de la centesimas x 26 y obtengo el esto                    	 
+	    
 	    ADD AH,65               	;se le suma 65 a ah
         
         ;MOV AH,'0'
@@ -315,8 +356,7 @@ incPosBp:
 VERIFICAR:
     CMP rtaLeidas[BP],'$'    
     JE  bucle
-    CMP rtaLeidas[BP],'%' 
-       
+    CMP rtaLeidas[BP],'%'
     JE  incPosBP
     
     JNE ingresarRta
@@ -346,36 +386,48 @@ errorLectura:
 
 INICIO_JUEGO:
  
-;LIMPIO REGISTROS DE PROPOSITO GENERAL
-        CALL limpiarRegistros   
-        
-        abrirArchivo archivo                    ;abrirArchivo recibe la ubicaion del archivo - 
-                                                ;lo abre y retorna su id en ID_Archivo
-        leerRta ID_Archivo,bytesRta,rtaLeidas   ;leerRta recibe el id del archivo y los bytes a leer - 
-                                                ;lo lee y retorna esa seccion en rtaLeidas
-        cerrarArchivo ID_Archivo                ;cerrarArchivos recibe el id del archivo y lo cierra
+;LIMPIO REGISTROS DE PROPOSITO GENERAL 
+    CALL clearScreen
+    CALL limpiarRegistros   
+    
+    abrirArchivo archivo                    ;abrirArchivo recibe la ubicaion del archivo - 
+                                            ;lo abre y retorna su id en ID_Archivo
+    leerRta ID_Archivo,bytesRta,rtaLeidas   ;leerRta recibe el id del archivo y los bytes a leer - 
+                                            ;lo lee y retorna esa seccion en rtaLeidas
+    cerrarArchivo ID_Archivo                ;cerrarArchivos recibe el id del archivo y lo cierra
 
-        CALL limpiarRegistros                   ;
-        
-        CALL cargarPantalla  
-		print menu               
-		
-		MOV BH,0
-		MOV estadoDelJuego,BH   
-        CALL iniciarCursor 
-		JMP DETECTAR_TECLA
+    CALL limpiarRegistros                   ;
+    
+    CALL cargarPantalla  
+	print menu
+
+	MOV BH,0
+	MOV estadoDelJuego,BH   
+    CALL iniciarCursor 
+	JMP DETECTAR_TECLA
+	 
 		 
-		 
-		 
+SOLICITA_NOMBRE:
+    CALL leerNombre      ; Guarda en variable nombre
+    
+    
 		 
 INICIO_SOPA:
-
-        
-        setCursor 0, 0
-        print pantalla 
-        
-        MOV BH,1
-		MOV estadoDelJuego,BH              
+    CALL clearScreen
+    setCursor 0, 0
+    print pantalla 
+    setCursor 24,5 
+    print referencias 
+    setCursor 24,5
+    putLetra 10100000b ; Seteamos putLetra en Verde;
+    setCursor 36,5
+    putLetra 01000000b ; Seteamos putLetra en Rojo;
+    setCursor 50,5
+    putLetra 11100000b ; Seteamos putLetra en Amarillo; 
+    setCursor posInicialCursor_X,posInicialCursor_Y
+    
+    MOV BH,1
+	MOV estadoDelJuego,BH              
                   
 		
 		
@@ -393,7 +445,8 @@ INICIALIZAR_CURSOR:
     
 
 DETECTAR_TECLA:  ;cuando aprete (a,s,d,w) le da la direccion al cursor para donde tiene que ir    
-        
+        MOV AH,0
+        INT 16h
         CMP AL,'w'
         JE MOVER_ARRIBA        
         CMP AL,'s'
@@ -403,9 +456,7 @@ DETECTAR_TECLA:  ;cuando aprete (a,s,d,w) le da la direccion al cursor para dond
         CMP AL,'d'
         JE MOVER_DERECHA
                 
-        CMP AL,13               ;SI TOCA ENTER elige la  letra
-       ; JE RESPUESTA_INICIO   
-        
+        CMP AL,13               ;SI TOCA ENTER elige la  letra   
         JE EVALUAR_ENTER  
         
         
@@ -415,8 +466,7 @@ DETECTAR_TECLA:  ;cuando aprete (a,s,d,w) le da la direccion al cursor para dond
         
         CMP AL,'q'
         JE fin
-        
-        ;JNE DETECTAR_TECLA
+        JNE DETECTAR_TECLA
             
             
             
@@ -429,8 +479,8 @@ MOVER_DERECHA: ;mueve el cursor hacia derecha 1 pos
         MOV BH,0
         MOV AH,2        
         INT 10h
-        MOV AH,0
-        INT 16h  
+        ;MOV AH,0
+        ;INT 16h  
         JMP DETECTAR_TECLA        
                               
 MOVER_ARRIBA:  ;mueve el cursor hacia arriba 1 pos
@@ -440,8 +490,8 @@ MOVER_ARRIBA:  ;mueve el cursor hacia arriba 1 pos
         MOV BH,0
         MOV AH,2        
         INT 10h
-        MOV AH,0
-        INT 16h
+        ;MOV AH,0
+        ;INT 16h
         JMP DETECTAR_TECLA
         
 MOVER_ABAJO:  ;mueve el cursor hacia abajo 1 pos 
@@ -451,8 +501,8 @@ MOVER_ABAJO:  ;mueve el cursor hacia abajo 1 pos
         MOV BH,0
         MOV AH,2        
         INT 10h
-        MOV AH,0
-        INT 16h
+        ;MOV AH,0
+        ;INT 16h
         JMP DETECTAR_TECLA
              
 
@@ -463,10 +513,9 @@ MOVER_IZQUIERDA: ;mueve el cursor hacia izquierda 1 pos
         DEC DL
         MOV AH,2        
         MOV BH,0
-        
         INT 10h
-        MOV AH,0
-        INT 16h
+        ;MOV AH,0
+        ;INT 16h
         JMP DETECTAR_TECLA
                
                
@@ -487,8 +536,8 @@ ultimaFila: ;cuando este en la fila 0 y se vaya hacia arriba, aparecera en la fi
         MOV DH,limMax_y         ;cantidad de filas menos una por empezar en cero   14
         INT 10h
         
-        MOV AH,0
-        INT 16h
+        ;MOV AH,0
+        ;INT 16h
         JMP DETECTAR_TECLA
                       
 primeraFila:  ;cuando este en la fila 10 y se vaya hacia arriba,
@@ -498,8 +547,8 @@ primeraFila:  ;cuando este en la fila 10 y se vaya hacia arriba,
         MOV DH,limMin_Y        ;0
         INT 10h
         
-        MOV AH,0
-        INT 16h
+        ;MOV AH,0
+        ;INT 16h
         JMP DETECTAR_TECLA
                       
 ultimaCulumna: ;cuando este en la columna 0 y se vaya hacia la derecha,
@@ -511,8 +560,8 @@ ultimaCulumna: ;cuando este en la columna 0 y se vaya hacia la derecha,
         ;DEC DH            ;cuando esta en el ultima columna y toca 'd'
         INT 10h           ; aparece en la primera columna pero la fila anterior
         
-        MOV AH,0
-        INT 16h
+        ;MOV AH,0
+        ;INT 16h
         JMP DETECTAR_TECLA
             
 primeraColumna:  ;cuando este en la columna 30 y se vaya hacia la derecha,
@@ -525,8 +574,8 @@ primeraColumna:  ;cuando este en la columna 30 y se vaya hacia la derecha,
         INT 10h         ; aparece enl la primera columna pero la fila siguiente
         
         
-        MOV AH,0
-        INT 16h
+        ;MOV AH,0
+        ;INT 16h
         JMP DETECTAR_TECLA
 
 
@@ -568,16 +617,16 @@ DETECTAR_RESPUESTA:
 
 ; Pinta de verde la respuesta correcta
 RESPUESTA_CORRECTA:
-    pintarPalabra 10100000b ; Pinta la palabra de Verde
-    MOV AL,respuestasOk      ; Incrementa las respuestas correctas   
-    INC AL
-    MOV respuestasOk, AL
+    MOV colorFondo, 10100000b
+    CALL pintarPalabra ; Pinta la palabra de Verde       
+    INC respuestasOk            ; Incrementa las respuestas correctas 
     colorPregunta 10100000b ; Sobrescribe el caracter con el anterior pero con color verde
     JMP SIGUIENTE_PREGUNTA
                                                 
 ; Pinta de rojo la respuesta incorrecta
 RESPUESTA_INCORRECTA:
-    pintarPalabra 01000000b ; Pinta la palabra de rojo
+    MOV colorFondo, 01000000b
+    CALL pintarPalabra ; Pinta la palabra de rojo
     colorPregunta 01000000b ; Sobrescribe el caracter con el anterior pero con color rojo
     JMP SIGUIENTE_PREGUNTA
                
@@ -585,7 +634,7 @@ RESPUESTA_INCORRECTA:
 SIGUIENTE_PREGUNTA:
     MOV AH,idxPregunta     ; Pasa a la siguiente pregunta
     INC AH
-    CMP AH, 2              ; Se acabaron las preguntas
+    CMP AH, cantidadDePreguntas              ; Se acabaron las preguntas
     JE  FIN_SOPA
     MOV idxPregunta, AH
     getPosicionPreguntaY    ; En AH la posicion Y
@@ -598,20 +647,32 @@ SIGUIENTE_PREGUNTA:
 error:
     JMP fin    
 
-FIN_SOPA:
-    setCursor 2, 20
-    print final_texto
+FIN_SOPA: 
+    setCursor 2, 24
+    MOV AL, 48
     MOV AH, respuestasOk
+    CMP AH, 10
+    JB DIGITOUNIDAD
+    MOV AL, 49
+    mov AH,0
+    DIGITOUNIDAD:
     ADD AH, 48
-    INT 21h
+    MOV SI, 22
+    MOV final_texto[SI], AL
+    INC SI
+    MOV final_texto[SI], AH
+    print final_texto
     CALL iniciarCursor
+    ;Presione una tecla para salir
+    MOV AH,0                
+    INT 16h
+    
     JMP fin
     
 
 ;Final de 
 fin:
-
-
+    CALL clearScreen
     MOV AH,00H
     INT 21h
     RET
