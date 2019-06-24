@@ -22,7 +22,13 @@ JMP INICIO_JUEGO
     limMin_Y    EQU  4         ;pos 4 de menu mas 0 de comienzo de matriz
     limMax_Y    EQU  18        ;pos 4 de menu mas 14 del alto de la matriz. limMin_Y + 14
     
-    txtPedirNombre DB "Nombre: ", '$'
+    txtJugador DB "Jugador: ", '$'
+    
+    txtInfo    DB "Para moverse por la sopa usar las teclas", 13, 10
+               DB " W", 13, 10
+               DB "ASD", 13, 10, 13, 10, 13, 10
+               DB "Ranking:", 13, 10
+               DB "Aciertos", 9, "Jugador", 13, 10, '$'
 
     menu		DB "           ######   #######  ########     ###            " ,10,13
                 DB "          ##    ## ##     ## ##     ##   ## ##           " ,10,13
@@ -97,6 +103,7 @@ JMP INICIO_JUEGO
 	;Seccion manejo de archivos
 	
 	archivo     DB "sopa.txt" , 0   ;Ubicacion del archivo a utilizar
+	archivoRanking DB "ranking.txt", 0 ; Ubicacion archivo de ranking
     ;archivo2    DB "c:\tp\preguntas2.txt" , 0  ;Ubicacion del archivo a utilizar
     ID_Archivo  DW  ? ;HANDLE de archivo
     
@@ -104,6 +111,7 @@ JMP INICIO_JUEGO
     ;COMPUERTA%HARVARD%COMPUTADORA%CISC%MENTIRA%BINARIO%PIPELINE%ARQUITECTURA%ASCII%RISC$-   85 caracteres
     bytesRta    DW	0FFFFh
     rtaLeidas   DB  600 dup ('$')
+    ranking   DB  600 dup ('$')
     ;Inicio errores
     
     msgErrorApertura    DB  10,13,"Se produjo un error al intentar ABRIR el archivo",'$'
@@ -131,6 +139,8 @@ JMP INICIO_JUEGO
     resto DB 26
 	letra DB ?
 	copia DB ?
+	jugador DB 20 DUP('$')
+	jugadorCaracteres DW 0
 	colorFondo DB 0 ; Color para pintar letras       
 	estadoDelJuego DB 0 ; estado 0 es juego no inicio, estado 1 es juegoIniciado Sin letra seleccionada, estado 2 es juegoIniciado con palabra Seleccionada.
     inicioX DB 0    ; Posicion X inicio de palabra
@@ -180,7 +190,7 @@ ENDM
 
 
 cerrarArchivo MACRO nombre  ;al llamar al macro pido el id del archivo
-    MOV AH, 3Dh
+    MOV AH, 3Eh
     MOV BX, nombre  ;Le paso el id del archivo a cerrar 
     INT 21h
 ENDM
@@ -225,14 +235,24 @@ ENDM
 ;¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 ;-------------------------Definicion de procedimientos----------------------
 ;___________________________________________________________________________  
-; Solicita el nombre hasta precionar enter
+; Solicita el nombre hasta ingresar una letra fuera del rango a-z
+; Ojo son minusculas
 leerNombre PROC
-    print txtPedirNombre
-   ; MOV 
-    MOV AH,0  
-    INT 16h
-
-        
+  leerNombreJMP:
+    MOV AH,01h
+    INT 21h
+    CMP AL, 97          ;Letra a
+    JB leerNombreFin
+    CMP AL, 122          ;Letra z
+    JA leerNombreFin
+  agregarLetraNombre:   ; Entre a y z
+    LEA SI, jugador
+    ADD SI, jugadorCaracteres
+    MOV [SI], AL 
+    INC jugadorCaracteres
+    JMP leerNombreJMP
+  leerNombreFin:
+    RET
 ENDP
 
 clearScreen PROC 
@@ -242,7 +262,8 @@ clearScreen PROC
         mov CX, 0
         mov DL, 79
         mov DH, 24
-        int 10H   
+        int 10H
+        setCursor 0, 0   
         RET
 ENDP
     
@@ -396,6 +417,12 @@ INICIO_JUEGO:
                                             ;lo lee y retorna esa seccion en rtaLeidas
     cerrarArchivo ID_Archivo                ;cerrarArchivos recibe el id del archivo y lo cierra
 
+    abrirArchivo archivoRanking                    ;abrirArchivo recibe la ubicaion del archivo - 
+                                            ;lo abre y retorna su id en ID_Archivo
+    leerRta ID_Archivo,bytesRta,ranking   ;leerRta recibe el id del archivo y los bytes a leer - 
+                                            ;lo lee y retorna esa seccion en rtaLeidas
+    cerrarArchivo ID_Archivo                ;cerrarArchivos recibe el id del archivo y lo cierra
+    
     CALL limpiarRegistros                   ;
     
     CALL cargarPantalla  
@@ -407,15 +434,13 @@ INICIO_JUEGO:
 	JMP DETECTAR_TECLA
 	 
 		 
-SOLICITA_NOMBRE:
-    CALL leerNombre      ; Guarda en variable nombre
-    
-    
-		 
 INICIO_SOPA:
     CALL clearScreen
     setCursor 0, 0
-    print pantalla 
+    print pantalla
+    setCursor 5, 22
+    print txtJugador
+    CALL leerNombre      ; Guarda en variable nombre
     setCursor 24,5 
     print referencias 
     setCursor 24,5
@@ -464,6 +489,10 @@ DETECTAR_TECLA:  ;cuando aprete (a,s,d,w) le da la direccion al cursor para dond
         ;CMP AL,27
         ;JE RESPUESTA_FIN
         
+        CMP AL,'i'
+        JE MOSTRAR_NFORMACION
+        CMP AL,'I'
+        JE MOSTRAR_NFORMACION
         CMP AL,'q'
         JE fin
         JNE DETECTAR_TECLA
@@ -644,6 +673,15 @@ SIGUIENTE_PREGUNTA:
     setCursor limMin_X, limMin_Y
     JMP DETECTAR_TECLA
 
+; Muestra informacion y ranking solo antes de comenzar el juego
+MOSTRAR_NFORMACION:
+    MOV BH,estadoDelJuego
+    CMP BH,0  ;Revisa si ya se inicio el juego.
+    JNE DETECTAR_TECLA
+    CALL clearScreen
+    print txtInfo
+    JMP DETECTAR_TECLA
+
 error:
     JMP fin    
 
@@ -676,4 +714,3 @@ fin:
     MOV AH,00H
     INT 21h
     RET
-
